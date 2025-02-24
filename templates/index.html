@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Surveillance</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+        #chart {
+            width: 80%;
+            height: 400px;
+            margin: auto;
+        }
+        .controls {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Developpement Surveillance</h2>
+    <div id="chart"></div>
+    <div class="controls">
+        <select id="categorySelect"></select>
+        <button onclick="increaseValue()">Ajouter</button>
+    </div>
+
+    <script>
+        var chartDom = document.getElementById('chart');
+        var myChart = echarts.init(chartDom);
+        var originalData = [];
+        var increasedData = [];
+        var categories = [];
+        var colors = ['#FFB6C1', '#ADD8E6', '#90EE90', '#FFD700', '#FF69B4', '#87CEFA'];
+        var increasedColor = '#FF6347'; // Artan kısmın rengi
+
+        fetch('/data')
+            .then(response => response.json())
+            .then(data => {
+                originalData = data.data;
+                increasedData = new Array(originalData.length).fill(0);
+                categories = data.categories;
+                var option = {
+                    tooltip: { trigger: 'axis' },
+                    xAxis: { type: 'category', data: categories },
+                    yAxis: { type: 'value', max: 50 },
+                    series: [
+                        {
+                            name: 'Travailler sur (%)',
+                            type: 'bar',
+                            stack: 'total',
+                            data: originalData,
+                            itemStyle: {
+                                color: function(params) {
+                                    return colors[params.dataIndex % colors.length];
+                                }
+                            }
+                        },
+                        {
+                            name: 'Augmentation',
+                            type: 'bar',
+                            stack: 'total',
+                            data: increasedData,
+                            itemStyle: {
+                                color: increasedColor
+                            }
+                        }
+                    ]
+                };
+                myChart.setOption(option);
+
+                var categorySelect = document.getElementById('categorySelect');
+                categories.forEach((category, index) => {
+                    var option = document.createElement('option');
+                    option.value = index;
+                    option.text = category;
+                    categorySelect.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Error fetching data:', error));
+
+        function increaseValue() {
+            var selectedIndex = document.getElementById('categorySelect').value;
+            fetch('/increase', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ index: selectedIndex })
+            })
+            .then(response => response.json())
+            .then(data => {
+                originalData = data.data;
+                increasedData[selectedIndex] += 1;
+                myChart.setOption({
+                    series: [
+                        {
+                            data: originalData
+                        },
+                        {
+                            data: increasedData
+                        }
+                    ]
+                });
+            })
+            .catch(error => console.error('Error updating data:', error));
+        }
+    </script>
+
+</body>
+</html>
